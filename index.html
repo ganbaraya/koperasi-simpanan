@@ -8,8 +8,12 @@
   <!-- Tailwind CSS dari CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
+  <!-- Muat React secara Global Terlebih Dahulu agar lebih stabil -->
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  
   <!-- Babel untuk mengubah file React (JSX) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
 
   <!-- Script Eksternal untuk Excel dan PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -27,751 +31,781 @@
     }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style> body { font-family: 'Inter', sans-serif; } </style>
+  <style> 
+    body { font-family: 'Inter', sans-serif; } 
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
 </head>
 <body class="bg-slate-50">
-  <!-- Indikator loading saat memuat modul -->
+  <!-- Indikator loading -->
   <div id="root">
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #64748b;">
       <div style="width: 40px; height: 40px; border: 4px solid #cbd5e1; border-top: 4px solid #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-      <p style="font-weight: bold; letter-spacing: 1px;">MEMUAT APLIKASI KOPERASI...</p>
-      <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+      <p style="font-weight: bold; letter-spacing: 1px;" id="loading-text">MEMUAT APLIKASI KOPERASI...</p>
     </div>
   </div>
 
-  <!-- PENTING: data-presets="react" mencegah babel mengubah import module -->
-  <script type="text/babel" data-type="module" data-presets="react">
-    import React, { useState, useEffect, useMemo, useRef } from 'https://esm.sh/react@18.2.0';
-    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-    import { 
-      Upload, Users, DollarSign, TrendingUp, Search, FileText, 
-      LogOut, Shield, ChevronRight, X, Download, AlertCircle, Edit, Save, Settings, Key, Building, Trash2, AlertTriangle, ExternalLink
-    } from 'https://esm.sh/lucide-react@0.292.0';
-    import { initializeApp } from 'https://esm.sh/firebase@10.8.0/app';
-    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://esm.sh/firebase@10.8.0/auth';
-    import { getFirestore, collection, onSnapshot, doc, setDoc, getDoc, writeBatch, query, getDocs } from 'https://esm.sh/firebase@10.8.0/firestore';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDIA_8HL-335JZspg20sAhpaEbY5ovofxg",
-      authDomain: "sikosib-28f29.firebaseapp.com",
-      projectId: "sikosib-28f29",
-      storageBucket: "sikosib-28f29.firebasestorage.app",
-      messagingSenderId: "1096545835512",
-      appId: "1:1096545835512:web:5fded121d1ce105d475e0d"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const appId = "sikosib-28f29";
-
-    function App() {
-      const [fbUser, setFbUser] = useState(null);
-      const [appRole, setAppRole] = useState(null); 
-      const [members, setMembers] = useState([]);
-      const [history, setHistory] = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [authError, setAuthError] = useState(null);
-      
-      const [koperasiProfile, setKoperasiProfile] = useState({
-        name: "Koperasi Syariah Indonesia",
-        address: "Jl. Raya Utama No. 123, Jakarta",
-        logo: "",
-        adminPassword: "admin123"
-      });
-
-      const [scriptsLoaded, setScriptsLoaded] = useState(true);
-
-      useEffect(() => {
-        const initAuth = async () => {
-          try {
-            await signInAnonymously(auth);
-            setAuthError(null);
-          } catch (err) {
-            console.error("Auth error:", err);
-            if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
-              setAuthError("Provider 'Anonymous' belum diaktifkan di Firebase Console.");
-            } else {
-              setAuthError(`Kesalahan Autentikasi: ${err.message}`);
-            }
-          }
-        };
+  <script type="text/babel">
+    // Kita gunakan IIFE (Self Executing Asynchronous Function) untuk load modul
+    // Ini metode paling aman dan cepat di semua browser (anti blank screen!)
+    (async function() {
+      try {
+        const loadingText = document.getElementById('loading-text');
         
-        initAuth();
+        // 1. Ekstrak React & ReactDOM yang sudah di-load global
+        const { useState, useEffect, useMemo, useRef } = React;
+        const { createRoot } = ReactDOM;
+        
+        // 2. Load Lucide Icons
+        loadingText.innerText = "MENYIAPKAN TAMPILAN...";
+        const { 
+          Upload, Users, DollarSign, TrendingUp, Search, FileText, 
+          LogOut, Shield, ChevronRight, X, Download, AlertCircle, Edit, Save, Settings, Key, Building, Trash2, AlertTriangle, ExternalLink
+        } = await import('https://esm.sh/lucide-react@0.292.0?external=react');
+        
+        // 3. Load Firebase SDK
+        loadingText.innerText = "MENGHUBUNGKAN KE DATABASE...";
+        const { initializeApp } = await import('https://esm.sh/firebase@10.8.0/app');
+        const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://esm.sh/firebase@10.8.0/auth');
+        const { getFirestore, collection, onSnapshot, doc, setDoc, getDoc, writeBatch, query, getDocs } = await import('https://esm.sh/firebase@10.8.0/firestore');
 
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          setFbUser(user);
-          if (user) {
-            setLoading(false);
-          }
-        });
-
-        return () => unsubscribe();
-      }, []);
-
-      useEffect(() => {
-        const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-        const unsubProfile = onSnapshot(profileRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setKoperasiProfile(prev => ({ ...prev, ...docSnap.data() }));
-          }
-        }, (error) => console.warn("Akses profil terbatas:", error));
-
-        const membersRef = collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_members');
-        const unsubMembers = onSnapshot(membersRef, (snapshot) => {
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setMembers(data);
-        }, (error) => console.warn("Akses anggota terbatas:", error));
-
-        const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_history');
-        const unsubHistory = onSnapshot(historyRef, (snapshot) => {
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          const sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
-          setHistory(sortedData);
-        }, (error) => console.warn("Akses riwayat terbatas:", error));
-
-        return () => {
-          unsubProfile();
-          unsubMembers();
-          unsubHistory();
+        // --- FIREBASE INITIALIZATION ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyDIA_8HL-335JZspg20sAhpaEbY5ovofxg",
+          authDomain: "sikosib-28f29.firebaseapp.com",
+          projectId: "sikosib-28f29",
+          storageBucket: "sikosib-28f29.firebasestorage.app",
+          messagingSenderId: "1096545835512",
+          appId: "1:1096545835512:web:5fded121d1ce105d475e0d"
         };
-      }, [fbUser]);
 
-      const handleLogin = (username, password) => {
-        if (username === 'admin' && password === koperasiProfile.adminPassword) {
-          setAppRole('admin');
-        } else if (username === 'ksib' && password === '12345') {
-          setAppRole('anggota');
-        } else {
-          alert("Username atau password salah!");
-        }
-      };
+        const app = window.firebaseApp = initializeApp(firebaseConfig);
+        const auth = window.firebaseAuth = getAuth(app);
+        const db = window.firebaseDb = getFirestore(app);
+        const appId = "sikosib-28f29";
 
-      const handleLogout = () => setAppRole(null);
+        // --- KOMPONEN APLIKASI ---
+        function App() {
+          const [fbUser, setFbUser] = useState(null);
+          const [appRole, setAppRole] = useState(null); 
+          const [members, setMembers] = useState([]);
+          const [history, setHistory] = useState([]);
+          const [loading, setLoading] = useState(true);
+          const [authError, setAuthError] = useState(null);
+          
+          const [koperasiProfile, setKoperasiProfile] = useState({
+            name: "Koperasi Syariah Indonesia",
+            address: "Jl. Raya Utama No. 123, Jakarta",
+            logo: "",
+            adminPassword: "admin123"
+          });
 
-      if (authError) {
-        return (
-          <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-lg border-t-8 border-red-500 pb-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="bg-red-100 p-3 rounded-2xl">
-                  <AlertTriangle className="w-10 h-10 text-red-600" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Aktifkan Autentikasi</h2>
-                  <p className="text-red-500 font-medium text-sm">Error: auth/configuration-not-found</p>
-                </div>
-              </div>
-              
-              <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-6 space-y-4">
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Metode masuk <b>Anonymous (Anonim)</b> belum diaktifkan di proyek Firebase Anda. Silakan ikuti langkah berikut:
-                </p>
-                <ol className="text-sm text-slate-700 space-y-3">
-                  <li className="flex gap-3">
-                    <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                    <span>Buka <a href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`} target="_blank" rel="noreferrer" className="text-emerald-600 underline font-bold inline-flex items-center gap-1">Firebase Console <ExternalLink className="w-3 h-3"/></a></span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                    <span>Klik tab <b>Sign-in method</b>.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                    <span>Klik <b>Add new provider</b> dan pilih <b>Anonymous</b>.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">4</span>
-                    <span>Klik tombol switch <b>Enable</b> lalu <b>Save</b>.</span>
-                  </li>
-                </ol>
-              </div>
+          const [scriptsLoaded, setScriptsLoaded] = useState(true);
 
-              <button 
-                onClick={() => window.location.reload()} 
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
-              >
-                Sudah Saya Aktifkan, Segarkan Halaman
-              </button>
-            </div>
-          </div>
-        );
-      }
-
-      if (!appRole) {
-        return <LoginScreen onLogin={handleLogin} koperasiProfile={koperasiProfile} />;
-      }
-
-      return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-          <nav className="bg-emerald-600 text-white shadow-md sticky top-0 z-50">
-            <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                {koperasiProfile.logo ? (
-                  <img src={koperasiProfile.logo} alt="Logo" className="w-8 h-8 rounded bg-white object-contain" />
-                ) : (
-                  <Shield className="w-6 h-6 text-emerald-200" />
-                )}
-                <h1 className="text-xl font-bold tracking-tight">{koperasiProfile.name}</h1>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="hidden md:inline-block text-emerald-100 text-xs font-medium bg-emerald-700/50 px-3 py-1 rounded-full uppercase">
-                  {appRole}
-                </span>
-                <button onClick={handleLogout} className="flex items-center gap-1 hover:bg-emerald-500 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Keluar</span>
-                </button>
-              </div>
-            </div>
-          </nav>
-
-          <main className="max-w-6xl mx-auto p-4 py-8">
-            {appRole === 'admin' ? (
-              <AdminDashboard 
-                members={members} 
-                history={history} 
-                loading={loading}
-                db={db}
-                appId={appId}
-                scriptsLoaded={scriptsLoaded}
-                profile={koperasiProfile}
-              />
-            ) : (
-              <MemberDashboard 
-                members={members} 
-                loading={loading} 
-                profile={koperasiProfile}
-              />
-            )}
-          </main>
-        </div>
-      );
-    }
-
-    function LoginScreen({ onLogin, koperasiProfile }) {
-      const [username, setUsername] = useState('');
-      const [password, setPassword] = useState('');
-
-      return (
-        <div className="min-h-screen bg-emerald-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden pt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-emerald-600 p-8 text-center">
-              {koperasiProfile.logo ? (
-                <img src={koperasiProfile.logo} alt="Logo" className="w-20 h-20 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 object-contain p-2" />
-              ) : (
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm text-white">
-                  <Shield className="w-8 h-8" />
-                </div>
-              )}
-              <h2 className="text-2xl font-bold text-white">{koperasiProfile.name}</h2>
-              <p className="text-emerald-100 mt-1 text-sm">{koperasiProfile.address}</p>
-            </div>
+          useEffect(() => {
+            const initAuth = async () => {
+              try {
+                await signInAnonymously(auth);
+                setAuthError(null);
+              } catch (err) {
+                console.error("Auth error:", err);
+                if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+                  setAuthError("Provider 'Anonymous' belum diaktifkan di Firebase Console.");
+                } else {
+                  setAuthError(`Kesalahan Autentikasi: ${err.message}`);
+                }
+              }
+            };
             
-            <form onSubmit={(e) => { e.preventDefault(); onLogin(username, password); }} className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Username</label>
-                  <input 
-                    type="text" 
-                    required 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
-                    value={username} 
-                    onChange={(e) => setUsername(e.target.value)} 
-                    placeholder="Masukkan username"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
-                  <input 
-                    type="password" 
-                    required 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)} 
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-100 transition-all active:scale-95">
-                Masuk Aplikasi
-              </button>
-              <div className="text-center pt-2">
-                <p className="text-xs text-slate-400">Hubungi admin jika lupa password</p>
-              </div>
-            </form>
-          </div>
-        </div>
-      );
-    }
+            initAuth();
 
-    function AdminDashboard({ members, history, loading, db, appId, scriptsLoaded, profile }) {
-      const [uploading, setUploading] = useState(false);
-      const [activeTab, setActiveTab] = useState('overview'); 
-
-      const totalAset = members.reduce((sum, m) => sum + (Number(m.total) || 0), 0);
-      const totalSHU = members.reduce((sum, m) => sum + (Number(m.shu) || 0), 0);
-      const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-
-      const handleFileUpload = async (e) => {
-        if (!window.XLSX) return alert("Sistem belum siap. Tunggu beberapa saat.");
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setUploading(true);
-        const reader = new FileReader();
-        reader.onload = async (evt) => {
-          try {
-            const bstr = evt.target.result;
-            const wb = window.XLSX.read(bstr, { type: 'binary' });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            const data = window.XLSX.utils.sheet_to_json(ws);
-
-            if (data.length === 0) throw new Error("File kosong");
-
-            const batch = writeBatch(db);
-            let periodeUpload = data[0]['Periode'] || data[0]['Periode Bulan'] || data[0]['periode'] || "Bulan Ini";
-            let tempAset = 0;
-            let tempSHU = 0;
-
-            data.forEach((row, i) => {
-              const nama = row['Nama Anggota'] || row['nama'] || \`Anggota \${i+1}\`;
-              const pokok = Number(row['Simpanan Pokok'] || 0);
-              const wajib = Number(row['Simpanan Wajib'] || 0);
-              const sukarela = Number(row['Simpanan Sukarela'] || 0);
-              const shu = Number(row['SHU'] || 0);
-              let total = Number(row['Total Saldo'] || (pokok + wajib + sukarela + shu));
-              
-              tempAset += total;
-              tempSHU += shu;
-
-              const docId = nama.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
-              const ref = doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_members', docId);
-              batch.set(ref, { 
-                nama, pokok, wajib, sukarela, shu, total, 
-                periode: periodeUpload, 
-                updatedAt: Date.now() 
-              });
-            });
-            
-            await batch.commit();
-
-            const historyId = periodeUpload.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_history', historyId), {
-              periode: periodeUpload, 
-              totalAset: tempAset, 
-              totalSHU: tempSHU, 
-              timestamp: Date.now()
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+              setFbUser(user);
+              if (user) setLoading(false);
             });
 
-            alert(\`Data periode \${periodeUpload} berhasil diunggah!\`);
-            setActiveTab('members');
-          } catch (err) {
-            console.error(err);
-            alert("Gagal memproses file Excel.");
-          }
-          setUploading(false);
-        };
-        reader.readAsBinaryString(file);
-      };
+            return () => unsubscribe();
+          }, []);
 
-      return (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800">Dashboard Admin</h2>
-              <p className="text-slate-500 uppercase text-xs font-bold tracking-widest">{profile.name}</p>
-            </div>
-            <div className="flex gap-2">
-              <input type="file" id="file-upload" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
-              <label htmlFor="file-upload" className="flex items-center gap-2 px-5 py-3 rounded-lg font-medium bg-emerald-600 text-white cursor-pointer hover:bg-emerald-700 transition-all">
-                {uploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Upload className="w-5 h-5" />}
-                {uploading ? 'Memproses...' : 'Upload Data Bulanan'}
-              </label>
-            </div>
-          </div>
+          useEffect(() => {
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+            const unsubProfile = onSnapshot(profileRef, (docSnap) => {
+              if (docSnap.exists()) {
+                setKoperasiProfile(prev => ({ ...prev, ...docSnap.data() }));
+              }
+            }, (error) => console.warn("Akses profil terbatas:", error));
 
-          <div className="flex space-x-2 border-b border-slate-200">
-            <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors \${activeTab === 'overview' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              <TrendingUp className="w-4 h-4" /> Ringkasan
-            </button>
-            <button onClick={() => setActiveTab('members')} className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors \${activeTab === 'members' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              <Users className="w-4 h-4" /> Data Anggota
-            </button>
-            <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors \${activeTab === 'settings' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              <Settings className="w-4 h-4" /> Pengaturan
-            </button>
-          </div>
+            const membersRef = collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_members');
+            const unsubMembers = onSnapshot(membersRef, (snapshot) => {
+              const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              setMembers(data);
+            }, (error) => console.warn("Akses anggota terbatas:", error));
 
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in">
-              <StatCard title="Total Aset Simpanan" value={formatRp(totalAset)} icon={<DollarSign className="w-6 h-6 text-emerald-600" />} bg="bg-emerald-50" />
-              <StatCard title="Total SHU Terdistribusi" value={formatRp(totalSHU)} icon={<TrendingUp className="w-6 h-6 text-amber-600" />} bg="bg-amber-50" />
-              <StatCard title="Anggota Terdaftar" value={\`\${members.length} Orang\`} icon={<Users className="w-6 h-6 text-blue-600" />} bg="bg-blue-50" />
-              
-              <div className="md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 className="font-bold flex items-center gap-2 mb-6"><TrendingUp className="w-5 h-5 text-emerald-600" /> Grafik Pertumbuhan</h3>
-                <SimpleBarChart data={history} />
-              </div>
-            </div>
-          )}
+            const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_history');
+            const unsubHistory = onSnapshot(historyRef, (snapshot) => {
+              const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              const sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
+              setHistory(sortedData);
+            }, (error) => console.warn("Akses riwayat terbatas:", error));
 
-          {activeTab === 'members' && <MemberList members={members} loading={loading} isAdmin={true} db={db} appId={appId} profile={profile} />}
-          {activeTab === 'settings' && <SettingsPanel profile={profile} db={db} appId={appId} />}
-        </div>
-      );
-    }
+            return () => {
+              unsubProfile();
+              unsubMembers();
+              unsubHistory();
+            };
+          }, [fbUser]);
 
-    function SettingsPanel({ profile, db, appId }) {
-      const [formData, setFormData] = useState({ ...profile });
-      const [saving, setSaving] = useState(false);
-      const [isResetting, setIsResetting] = useState(false);
-      const [resetConfirm, setResetConfirm] = useState('');
+          const handleLogin = (username, password) => {
+            if (username === 'admin' && password === koperasiProfile.adminPassword) {
+              setAppRole('admin');
+            } else if (username === 'ksib' && password === '12345') {
+              setAppRole('anggota');
+            } else {
+              alert("Username atau password salah!");
+            }
+          };
 
-      const handleSave = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        try {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), formData);
-          alert("Pengaturan koperasi telah diperbarui!");
-        } catch (err) {
-          alert("Gagal menyimpan pengaturan.");
-        }
-        setSaving(false);
-      };
+          const handleLogout = () => setAppRole(null);
 
-      const handleResetData = async () => {
-        if (resetConfirm !== 'HAPUS') {
-          alert("Silakan ketik HAPUS untuk mengonfirmasi.");
-          return;
-        }
+          if (authError) {
+            return (
+              <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+                <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-lg border-t-8 border-red-500 pb-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="bg-red-100 p-3 rounded-2xl">
+                      <AlertTriangle className="w-10 h-10 text-red-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-800">Aktifkan Autentikasi</h2>
+                      <p className="text-red-500 font-medium text-sm">Error: auth/configuration-not-found</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-6 space-y-4">
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Metode masuk <b>Anonymous (Anonim)</b> belum diaktifkan di proyek Firebase Anda. Silakan ikuti langkah berikut:
+                    </p>
+                    <ol className="text-sm text-slate-700 space-y-3">
+                      <li className="flex gap-3">
+                        <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                        <span>Buka <a href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`} target="_blank" rel="noreferrer" className="text-emerald-600 underline font-bold inline-flex items-center gap-1">Firebase Console <ExternalLink className="w-3 h-3"/></a></span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                        <span>Klik tab <b>Sign-in method</b>.</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                        <span>Klik <b>Add new provider</b> dan pilih <b>Anonymous</b>.</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                        <span>Klik tombol switch <b>Enable</b> lalu <b>Save</b>.</span>
+                      </li>
+                    </ol>
+                  </div>
 
-        setIsResetting(true);
-        try {
-          const membersSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_members'));
-          const historySnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_history'));
-          
-          const batch = writeBatch(db);
-          membersSnap.forEach((d) => batch.delete(d.ref));
-          historySnap.forEach((d) => batch.delete(d.ref));
-          
-          await batch.commit();
-          alert("Seluruh data anggota dan riwayat telah dikosongkan!");
-          setResetConfirm('');
-        } catch (err) {
-          console.error(err);
-          alert("Terjadi kesalahan saat menghapus data.");
-        }
-        setIsResetting(false);
-      };
-
-      return (
-        <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <Settings className="w-6 h-6 text-emerald-600" /> Identitas Aplikasi
-            </h3>
-            
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="space-y-4">
-                <h4 className="font-bold text-slate-700 flex items-center gap-2 border-b pb-2"><Building className="w-4 h-4" /> Informasi Koperasi</h4>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-600">Nama Resmi</label>
-                  <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-600">Alamat Lengkap</label>
-                  <textarea className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" rows="2" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})}></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-600">Link Logo</label>
-                  <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="https://..." value={formData.logo} onChange={(e) => setFormData({...formData, logo: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-600">Password Login Admin</label>
-                  <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono" value={formData.adminPassword} onChange={(e) => setFormData({...formData, adminPassword: e.target.value})} />
-                </div>
-              </div>
-
-              <button type="submit" disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all">
-                {saving ? 'Menyimpan...' : <><Save className="w-5 h-5" /> Simpan Perubahan</>}
-              </button>
-            </form>
-          </div>
-
-          <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
-            <h3 className="text-xl font-bold text-red-700 mb-2 flex items-center gap-2">
-              <AlertTriangle className="w-6 h-6" /> Zona Bahaya
-            </h3>
-            <p className="text-sm text-red-600 mb-6">Fitur ini akan menghapus **SELURUH DATA ANGGOTA** dan **RIWAYAT GRAFIK**. Gunakan hanya jika Anda ingin mengosongkan database untuk upload data baru dari nol.</p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-red-700 mb-2 uppercase tracking-widest">Ketik "HAPUS" untuk konfirmasi</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    className="flex-1 px-4 py-2 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none uppercase font-bold text-red-700" 
-                    placeholder="HAPUS" 
-                    value={resetConfirm} 
-                    onChange={(e) => setResetConfirm(e.target.value)} 
-                  />
                   <button 
-                    onClick={handleResetData}
-                    disabled={isResetting || resetConfirm !== 'HAPUS'}
-                    className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all shadow-md \${resetConfirm === 'HAPUS' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-200 text-red-400 cursor-not-allowed'}`}
+                    onClick={() => window.location.reload()} 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
                   >
-                    {isResetting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Trash2 className="w-5 h-5" />}
-                    Reset Semua Data
+                    Sudah Saya Aktifkan, Segarkan Halaman
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
+            );
+          }
 
-    function MemberDashboard({ members, loading, profile }) {
-      return (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 animate-in slide-in-from-top-4">
-            {profile.logo ? (
-              <img src={profile.logo} alt="Logo" className="w-16 h-16 rounded-xl border p-2 object-contain" />
-            ) : (
-              <div className="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Shield className="w-8 h-8 text-emerald-600" />
-              </div>
-            )}
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Portal Anggota Mandiri</h2>
-              <p className="text-slate-500 font-medium">{profile.name}</p>
-            </div>
-          </div>
-          <MemberList members={members} loading={loading} isAdmin={false} profile={profile} />
-        </div>
-      );
-    }
+          if (!appRole) {
+            return <LoginScreen onLogin={handleLogin} koperasiProfile={koperasiProfile} />;
+          }
 
-    function MemberList({ members, loading, isAdmin, db, appId, profile }) {
-      const [searchTerm, setSearchTerm] = useState('');
-      const [selectedMember, setSelectedMember] = useState(null);
-
-      const filteredMembers = useMemo(() => {
-        return members.filter(m => m.nama?.toLowerCase().includes(searchTerm.toLowerCase()));
-      }, [members, searchTerm]);
-
-      return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
-            <h3 className="font-bold text-slate-700">Daftar Anggota ({filteredMembers.length})</h3>
-            <div className="relative w-full sm:w-72">
-              <input type="text" placeholder="Cari nama anggota..." className="w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="p-20 text-center text-slate-400">
-              <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-              Memproses data koperasi...
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 max-h-[60vh] overflow-y-auto">
-              {filteredMembers.map(member => (
-                <button key={member.id} onClick={() => setSelectedMember(member)} className="p-5 text-left hover:bg-emerald-50 transition-all flex justify-between items-center border-b border-r border-slate-100 group">
-                  <div>
-                    <p className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">{member.nama}</p>
-                    <p className="text-xs text-emerald-600 font-black tracking-wide mt-1">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(member.total)}</p>
+          return (
+            <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+              <nav className="bg-emerald-600 text-white shadow-md sticky top-0 z-50">
+                <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    {koperasiProfile.logo ? (
+                      <img src={koperasiProfile.logo} alt="Logo" className="w-8 h-8 rounded bg-white object-contain" />
+                    ) : (
+                      <Shield className="w-6 h-6 text-emerald-200" />
+                    )}
+                    <h1 className="text-xl font-bold tracking-tight">{koperasiProfile.name}</h1>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-400 transform group-hover:translate-x-1 transition-all" />
-                </button>
-              ))}
-              {filteredMembers.length === 0 && (
-                <div className="col-span-full p-20 text-center text-slate-400 italic bg-white">
-                  <Search className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                  Nama anggota tidak ditemukan.
-                </div>
-              )}
-            </div>
-          )}
-
-          {selectedMember && (
-            <MemberDetailModal 
-              member={selectedMember} 
-              onClose={() => setSelectedMember(null)} 
-              isAdmin={isAdmin} 
-              db={db} 
-              appId={appId} 
-              profile={profile}
-            />
-          )}
-        </div>
-      );
-    }
-
-    function MemberDetailModal({ member, onClose, isAdmin, db, appId, profile }) {
-      const [isEditing, setIsEditing] = useState(false);
-      const [editData, setEditData] = useState({ pokok: member.pokok, wajib: member.wajib, sukarela: member.sukarela, shu: member.shu });
-      const detailRef = useRef(null);
-
-      const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-
-      const getTodayDate = () => {
-        return new Intl.DateTimeFormat('id-ID', { 
-          day: 'numeric', 
-          month: 'long', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }).format(new Date());
-      };
-
-      const handleDownloadPDF = () => {
-        if (!window.html2pdf) return alert("Sistem cetak sedang bersiap.");
-        const element = detailRef.current;
-        
-        const opt = {
-          margin: 15,
-          filename: \`Laporan_Simpanan_\${member.nama}.pdf\`,
-          image: { type: 'jpeg', quality: 1.0 },
-          html2canvas: { scale: 3, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        
-        const btns = element.querySelectorAll('.no-print');
-        btns.forEach(b => b.style.display = 'none');
-        
-        window.html2pdf().set(opt).from(element).save().then(() => {
-          btns.forEach(b => b.style.display = 'flex');
-        });
-      };
-
-      const handleSave = async () => {
-        const total = Number(editData.pokok) + Number(editData.wajib) + Number(editData.sukarela) + Number(editData.shu);
-        try {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_members', member.id), { ...member, ...editData, total, updatedAt: Date.now() });
-          alert("Data berhasil diperbarui.");
-          setIsEditing(false);
-          onClose();
-        } catch (err) { alert("Terjadi kesalahan."); }
-      };
-
-      return (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div ref={detailRef} className="bg-white">
-              <div className="bg-emerald-700 p-8 text-white relative flex gap-6 items-center">
-                {profile.logo && <img src={profile.logo} alt="Logo" className="w-14 h-14 bg-white rounded-xl p-1.5 object-contain no-print shadow-lg" />}
-                <div className="flex-1">
-                  <h3 className="font-black text-xl leading-tight">{profile.name}</h3>
-                  <p className="text-xs text-emerald-100 mt-1 opacity-90">{profile.address}</p>
-                </div>
-                <button onClick={onClose} className="text-white hover:rotate-90 transition-all no-print"><X className="w-7 h-7" /></button>
-              </div>
-
-              <div className="p-8 text-slate-800">
-                <div className="text-center mb-8 border-b pb-6">
-                  <h2 className="text-2xl font-black uppercase tracking-tight">Rincian Simpanan</h2>
-                  <span className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 inline-block">Periode: {member.periode}</span>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="bg-slate-50 p-4 rounded-xl mb-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anggota</p>
-                    <p className="font-bold text-lg">{member.nama}</p>
+                  <div className="flex items-center gap-4">
+                    <span className="hidden md:inline-block text-emerald-100 text-xs font-medium bg-emerald-700/50 px-3 py-1 rounded-full uppercase">
+                      {appRole}
+                    </span>
+                    <button onClick={handleLogout} className="flex items-center gap-1 hover:bg-emerald-500 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                      <LogOut className="w-4 h-4" />
+                      <span className="hidden sm:inline">Keluar</span>
+                    </button>
                   </div>
+                </div>
+              </nav>
 
-                  {[
-                    { label: 'Simpanan Pokok', key: 'pokok' },
-                    { label: 'Simpanan Wajib', key: 'wajib' },
-                    { label: 'Simpanan Sukarela', key: 'sukarela' },
-                    { label: 'SHU', key: 'shu' }
-                  ].map(row => (
-                    <div key={row.key} className="flex justify-between items-center py-2 border-b border-slate-100">
-                      <span className="text-slate-500 font-medium">{row.label}</span>
-                      {isEditing ? (
-                        <input type="number" className="w-32 text-right border-2 border-emerald-100 rounded-lg p-1.5" value={editData[row.key]} onChange={e => setEditData({...editData, [row.key]: e.target.value})} />
-                      ) : (
-                        <span className="font-bold">{formatRp(member[row.key])}</span>
-                      )}
+              <main className="max-w-6xl mx-auto p-4 py-8">
+                {appRole === 'admin' ? (
+                  <AdminDashboard 
+                    members={members} 
+                    history={history} 
+                    loading={loading}
+                    db={db}
+                    appId={appId}
+                    scriptsLoaded={scriptsLoaded}
+                    profile={koperasiProfile}
+                  />
+                ) : (
+                  <MemberDashboard 
+                    members={members} 
+                    loading={loading} 
+                    profile={koperasiProfile}
+                  />
+                )}
+              </main>
+            </div>
+          );
+        }
+
+        function LoginScreen({ onLogin, koperasiProfile }) {
+          const [username, setUsername] = useState('');
+          const [password, setPassword] = useState('');
+
+          return (
+            <div className="min-h-screen bg-emerald-50 flex items-center justify-center p-4">
+              <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden pt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-emerald-600 p-8 text-center">
+                  {koperasiProfile.logo ? (
+                    <img src={koperasiProfile.logo} alt="Logo" className="w-20 h-20 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 object-contain p-2" />
+                  ) : (
+                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm text-white">
+                      <Shield className="w-8 h-8" />
                     </div>
-                  ))}
+                  )}
+                  <h2 className="text-2xl font-bold text-white">{koperasiProfile.name}</h2>
+                  <p className="text-emerald-100 mt-1 text-sm">{koperasiProfile.address}</p>
+                </div>
+                
+                <form onSubmit={(e) => { e.preventDefault(); onLogin(username, password); }} className="p-8 space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Username</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
+                        value={username} 
+                        onChange={(e) => setUsername(e.target.value)} 
+                        placeholder="Masukkan username"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
+                      <input 
+                        type="password" 
+                        required 
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                  <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-100 transition-all active:scale-95">
+                    Masuk Aplikasi
+                  </button>
+                  <div className="text-center pt-2">
+                    <p className="text-xs text-slate-400">Hubungi admin jika lupa password</p>
+                  </div>
+                </form>
+              </div>
+            </div>
+          );
+        }
+
+        function AdminDashboard({ members, history, loading, db, appId, scriptsLoaded, profile }) {
+          const [uploading, setUploading] = useState(false);
+          const [activeTab, setActiveTab] = useState('overview'); 
+
+          const totalAset = members.reduce((sum, m) => sum + (Number(m.total) || 0), 0);
+          const totalSHU = members.reduce((sum, m) => sum + (Number(m.shu) || 0), 0);
+          const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+
+          const handleFileUpload = async (e) => {
+            if (!window.XLSX) return alert("Sistem belum siap. Tunggu beberapa saat.");
+            const file = e.target.files[0];
+            if (!file) return;
+
+            setUploading(true);
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+              try {
+                const bstr = evt.target.result;
+                const wb = window.XLSX.read(bstr, { type: 'binary' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const data = window.XLSX.utils.sheet_to_json(ws);
+
+                if (data.length === 0) throw new Error("File kosong");
+
+                const batch = writeBatch(db);
+                let periodeUpload = data[0]['Periode'] || data[0]['Periode Bulan'] || data[0]['periode'] || "Bulan Ini";
+                let tempAset = 0;
+                let tempSHU = 0;
+
+                data.forEach((row, i) => {
+                  const nama = row['Nama Anggota'] || row['nama'] || \`Anggota \${i+1}\`;
+                  const pokok = Number(row['Simpanan Pokok'] || 0);
+                  const wajib = Number(row['Simpanan Wajib'] || 0);
+                  const sukarela = Number(row['Simpanan Sukarela'] || 0);
+                  const shu = Number(row['SHU'] || 0);
+                  let total = Number(row['Total Saldo'] || (pokok + wajib + sukarela + shu));
                   
-                  <div className="mt-8 flex justify-between items-center text-emerald-800 bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
-                    <span className="font-black text-xs uppercase tracking-widest">Total Akumulasi</span>
-                    <span className="text-3xl font-black">{formatRp(isEditing ? (Number(editData.pokok)+Number(editData.wajib)+Number(editData.sukarela)+Number(editData.shu)) : member.total)}</span>
+                  tempAset += total;
+                  tempSHU += shu;
+
+                  const docId = nama.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                  const ref = doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_members', docId);
+                  batch.set(ref, { 
+                    nama, pokok, wajib, sukarela, shu, total, 
+                    periode: periodeUpload, 
+                    updatedAt: Date.now() 
+                  });
+                });
+                
+                await batch.commit();
+
+                const historyId = periodeUpload.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_history', historyId), {
+                  periode: periodeUpload, 
+                  totalAset: tempAset, 
+                  totalSHU: tempSHU, 
+                  timestamp: Date.now()
+                });
+
+                alert(\`Data periode \${periodeUpload} berhasil diunggah!\`);
+                setActiveTab('members');
+              } catch (err) {
+                console.error(err);
+                alert("Gagal memproses file Excel.");
+              }
+              setUploading(false);
+            };
+            reader.readAsBinaryString(file);
+          };
+
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Dashboard Admin</h2>
+                  <p className="text-slate-500 uppercase text-xs font-bold tracking-widest">{profile.name}</p>
+                </div>
+                <div className="flex gap-2">
+                  <input type="file" id="file-upload" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                  <label htmlFor="file-upload" className="flex items-center gap-2 px-5 py-3 rounded-lg font-medium bg-emerald-600 text-white cursor-pointer hover:bg-emerald-700 transition-all">
+                    {uploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Upload className="w-5 h-5" />}
+                    {uploading ? 'Memproses...' : 'Upload Data Bulanan'}
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex space-x-2 border-b border-slate-200">
+                <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors \${activeTab === 'overview' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  <TrendingUp className="w-4 h-4" /> Ringkasan
+                </button>
+                <button onClick={() => setActiveTab('members')} className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors \${activeTab === 'members' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  <Users className="w-4 h-4" /> Data Anggota
+                </button>
+                <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors \${activeTab === 'settings' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  <Settings className="w-4 h-4" /> Pengaturan
+                </button>
+              </div>
+
+              {activeTab === 'overview' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in">
+                  <StatCard title="Total Aset Simpanan" value={formatRp(totalAset)} icon={<DollarSign className="w-6 h-6 text-emerald-600" />} bg="bg-emerald-50" />
+                  <StatCard title="Total SHU Terdistribusi" value={formatRp(totalSHU)} icon={<TrendingUp className="w-6 h-6 text-amber-600" />} bg="bg-amber-50" />
+                  <StatCard title="Anggota Terdaftar" value={\`\${members.length} Orang\`} icon={<Users className="w-6 h-6 text-blue-600" />} bg="bg-blue-50" />
+                  
+                  <div className="md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold flex items-center gap-2 mb-6"><TrendingUp className="w-5 h-5 text-emerald-600" /> Grafik Pertumbuhan</h3>
+                    <SimpleBarChart data={history} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'members' && <MemberList members={members} loading={loading} isAdmin={true} db={db} appId={appId} profile={profile} />}
+              {activeTab === 'settings' && <SettingsPanel profile={profile} db={db} appId={appId} />}
+            </div>
+          );
+        }
+
+        function SettingsPanel({ profile, db, appId }) {
+          const [formData, setFormData] = useState({ ...profile });
+          const [saving, setSaving] = useState(false);
+          const [isResetting, setIsResetting] = useState(false);
+          const [resetConfirm, setResetConfirm] = useState('');
+
+          const handleSave = async (e) => {
+            e.preventDefault();
+            setSaving(true);
+            try {
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), formData);
+              alert("Pengaturan koperasi telah diperbarui!");
+            } catch (err) {
+              alert("Gagal menyimpan pengaturan.");
+            }
+            setSaving(false);
+          };
+
+          const handleResetData = async () => {
+            if (resetConfirm !== 'HAPUS') {
+              alert("Silakan ketik HAPUS untuk mengonfirmasi.");
+              return;
+            }
+
+            setIsResetting(true);
+            try {
+              const membersSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_members'));
+              const historySnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'koperasi_history'));
+              
+              const batch = writeBatch(db);
+              membersSnap.forEach((d) => batch.delete(d.ref));
+              historySnap.forEach((d) => batch.delete(d.ref));
+              
+              await batch.commit();
+              alert("Seluruh data anggota dan riwayat telah dikosongkan!");
+              setResetConfirm('');
+            } catch (err) {
+              console.error(err);
+              alert("Terjadi kesalahan saat menghapus data.");
+            }
+            setIsResetting(false);
+          };
+
+          return (
+            <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                  <Settings className="w-6 h-6 text-emerald-600" /> Identitas Aplikasi
+                </h3>
+                
+                <form onSubmit={handleSave} className="space-y-6">
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-2 border-b pb-2"><Building className="w-4 h-4" /> Informasi Koperasi</h4>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-600">Nama Resmi</label>
+                      <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-600">Alamat Lengkap</label>
+                      <textarea className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" rows="2" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})}></textarea>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-600">Link Logo</label>
+                      <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="https://..." value={formData.logo} onChange={(e) => setFormData({...formData, logo: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-600">Password Login Admin</label>
+                      <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono" value={formData.adminPassword} onChange={(e) => setFormData({...formData, adminPassword: e.target.value})} />
+                    </div>
                   </div>
 
-                  <div className="mt-8 pt-4 border-t border-dashed border-slate-200 text-center">
-                    <p className="text-[10px] text-slate-400 font-medium italic">
-                      Dicetak pada: {getTodayDate()}
-                    </p>
+                  <button type="submit" disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all">
+                    {saving ? 'Menyimpan...' : <><Save className="w-5 h-5" /> Simpan Perubahan</>}
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
+                <h3 className="text-xl font-bold text-red-700 mb-2 flex items-center gap-2">
+                  <AlertTriangle className="w-6 h-6" /> Zona Bahaya
+                </h3>
+                <p className="text-sm text-red-600 mb-6">Fitur ini akan menghapus **SELURUH DATA ANGGOTA** dan **RIWAYAT GRAFIK**. Gunakan hanya jika Anda ingin mengosongkan database untuk upload data baru dari nol.</p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-red-700 mb-2 uppercase tracking-widest">Ketik "HAPUS" untuk konfirmasi</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        className="flex-1 px-4 py-2 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none uppercase font-bold text-red-700" 
+                        placeholder="HAPUS" 
+                        value={resetConfirm} 
+                        onChange={(e) => setResetConfirm(e.target.value)} 
+                      />
+                      <button 
+                        onClick={handleResetData}
+                        disabled={isResetting || resetConfirm !== 'HAPUS'}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all shadow-md \${resetConfirm === 'HAPUS' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-200 text-red-400 cursor-not-allowed'}`}
+                      >
+                        {isResetting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Trash2 className="w-5 h-5" />}
+                        Reset Semua Data
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          );
+        }
 
-            <div className="bg-slate-50 p-5 border-t flex justify-end gap-3 no-print">
-              {isAdmin && (
-                <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all shadow-md \${isEditing ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}>
-                  {isEditing ? <Save className="w-5 h-5" /> : <Edit className="w-5 h-5" />}
-                  {isEditing ? 'Simpan' : 'Edit'}
-                </button>
+        function MemberDashboard({ members, loading, profile }) {
+          return (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 animate-in slide-in-from-top-4">
+                {profile.logo ? (
+                  <img src={profile.logo} alt="Logo" className="w-16 h-16 rounded-xl border p-2 object-contain" />
+                ) : (
+                  <div className="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <Shield className="w-8 h-8 text-emerald-600" />
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Portal Anggota Mandiri</h2>
+                  <p className="text-slate-500 font-medium">{profile.name}</p>
+                </div>
+              </div>
+              <MemberList members={members} loading={loading} isAdmin={false} profile={profile} />
+            </div>
+          );
+        }
+
+        function MemberList({ members, loading, isAdmin, db, appId, profile }) {
+          const [searchTerm, setSearchTerm] = useState('');
+          const [selectedMember, setSelectedMember] = useState(null);
+
+          const filteredMembers = useMemo(() => {
+            return members.filter(m => m.nama?.toLowerCase().includes(searchTerm.toLowerCase()));
+          }, [members, searchTerm]);
+
+          return (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
+                <h3 className="font-bold text-slate-700">Daftar Anggota ({filteredMembers.length})</h3>
+                <div className="relative w-full sm:w-72">
+                  <input type="text" placeholder="Cari nama anggota..." className="w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="p-20 text-center text-slate-400">
+                  <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  Memproses data koperasi...
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 max-h-[60vh] overflow-y-auto">
+                  {filteredMembers.map(member => (
+                    <button key={member.id} onClick={() => setSelectedMember(member)} className="p-5 text-left hover:bg-emerald-50 transition-all flex justify-between items-center border-b border-r border-slate-100 group">
+                      <div>
+                        <p className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">{member.nama}</p>
+                        <p className="text-xs text-emerald-600 font-black tracking-wide mt-1">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(member.total)}</p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-400 transform group-hover:translate-x-1 transition-all" />
+                    </button>
+                  ))}
+                  {filteredMembers.length === 0 && (
+                    <div className="col-span-full p-20 text-center text-slate-400 italic bg-white">
+                      <Search className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                      Nama anggota tidak ditemukan.
+                    </div>
+                  )}
+                </div>
               )}
-              {!isEditing && (
-                <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold shadow-md">
-                  <Download className="w-5 h-5" /> Cetak
-                </button>
+
+              {selectedMember && (
+                <MemberDetailModal 
+                  member={selectedMember} 
+                  onClose={() => setSelectedMember(null)} 
+                  isAdmin={isAdmin} 
+                  db={db} 
+                  appId={appId} 
+                  profile={profile}
+                />
               )}
+            </div>
+          );
+        }
+
+        function MemberDetailModal({ member, onClose, isAdmin, db, appId, profile }) {
+          const [isEditing, setIsEditing] = useState(false);
+          const [editData, setEditData] = useState({ pokok: member.pokok, wajib: member.wajib, sukarela: member.sukarela, shu: member.shu });
+          const detailRef = useRef(null);
+
+          const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+
+          const getTodayDate = () => {
+            return new Intl.DateTimeFormat('id-ID', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }).format(new Date());
+          };
+
+          const handleDownloadPDF = () => {
+            if (!window.html2pdf) return alert("Sistem cetak sedang bersiap.");
+            const element = detailRef.current;
+            
+            const opt = {
+              margin: 15,
+              filename: \`Laporan_Simpanan_\${member.nama}.pdf\`,
+              image: { type: 'jpeg', quality: 1.0 },
+              html2canvas: { scale: 3, useCORS: true },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            const btns = element.querySelectorAll('.no-print');
+            btns.forEach(b => b.style.display = 'none');
+            
+            window.html2pdf().set(opt).from(element).save().then(() => {
+              btns.forEach(b => b.style.display = 'flex');
+            });
+          };
+
+          const handleSave = async () => {
+            const total = Number(editData.pokok) + Number(editData.wajib) + Number(editData.sukarela) + Number(editData.shu);
+            try {
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_members', member.id), { ...member, ...editData, total, updatedAt: Date.now() });
+              alert("Data berhasil diperbarui.");
+              setIsEditing(false);
+              onClose();
+            } catch (err) { alert("Terjadi kesalahan."); }
+          };
+
+          return (
+            <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div ref={detailRef} className="bg-white">
+                  <div className="bg-emerald-700 p-8 text-white relative flex gap-6 items-center">
+                    {profile.logo && <img src={profile.logo} alt="Logo" className="w-14 h-14 bg-white rounded-xl p-1.5 object-contain no-print shadow-lg" />}
+                    <div className="flex-1">
+                      <h3 className="font-black text-xl leading-tight">{profile.name}</h3>
+                      <p className="text-xs text-emerald-100 mt-1 opacity-90">{profile.address}</p>
+                    </div>
+                    <button onClick={onClose} className="text-white hover:rotate-90 transition-all no-print"><X className="w-7 h-7" /></button>
+                  </div>
+
+                  <div className="p-8 text-slate-800">
+                    <div className="text-center mb-8 border-b pb-6">
+                      <h2 className="text-2xl font-black uppercase tracking-tight">Rincian Simpanan</h2>
+                      <span className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 inline-block">Periode: {member.periode}</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-slate-50 p-4 rounded-xl mb-4">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anggota</p>
+                        <p className="font-bold text-lg">{member.nama}</p>
+                      </div>
+
+                      {[
+                        { label: 'Simpanan Pokok', key: 'pokok' },
+                        { label: 'Simpanan Wajib', key: 'wajib' },
+                        { label: 'Simpanan Sukarela', key: 'sukarela' },
+                        { label: 'SHU', key: 'shu' }
+                      ].map(row => (
+                        <div key={row.key} className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-slate-500 font-medium">{row.label}</span>
+                          {isEditing ? (
+                            <input type="number" className="w-32 text-right border-2 border-emerald-100 rounded-lg p-1.5" value={editData[row.key]} onChange={e => setEditData({...editData, [row.key]: e.target.value})} />
+                          ) : (
+                            <span className="font-bold">{formatRp(member[row.key])}</span>
+                          )}
+                        </div>
+                      ))}
+                      
+                      <div className="mt-8 flex justify-between items-center text-emerald-800 bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
+                        <span className="font-black text-xs uppercase tracking-widest">Total Akumulasi</span>
+                        <span className="text-3xl font-black">{formatRp(isEditing ? (Number(editData.pokok)+Number(editData.wajib)+Number(editData.sukarela)+Number(editData.shu)) : member.total)}</span>
+                      </div>
+
+                      <div className="mt-8 pt-4 border-t border-dashed border-slate-200 text-center">
+                        <p className="text-[10px] text-slate-400 font-medium italic">
+                          Dicetak pada: {getTodayDate()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-5 border-t flex justify-end gap-3 no-print">
+                  {isAdmin && (
+                    <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all shadow-md \${isEditing ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}>
+                      {isEditing ? <Save className="w-5 h-5" /> : <Edit className="w-5 h-5" />}
+                      {isEditing ? 'Simpan' : 'Edit'}
+                    </button>
+                  )}
+                  {!isEditing && (
+                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold shadow-md">
+                      <Download className="w-5 h-5" /> Cetak
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function StatCard({ title, value, icon, bg }) {
+          return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5">
+              <div className={`p-4 rounded-2xl shadow-inner \${bg}`}>{icon}</div>
+              <div>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
+                <p className="text-2xl font-black text-slate-800">{value}</p>
+              </div>
+            </div>
+          );
+        }
+
+        function SimpleBarChart({ data }) {
+          const chartData = data.slice(-8);
+          const maxVal = Math.max(...chartData.map(d => d.totalAset), 1000);
+          const formatCompact = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
+
+          return (
+            <div className="h-64 flex items-end gap-3 sm:gap-6 pt-10 px-2">
+              {chartData.map((item, idx) => (
+                <div key={idx} className="flex-1 flex flex-col items-center gap-3 group relative h-full justify-end">
+                  <div className="w-full bg-slate-50 rounded-t-xl h-full flex items-end justify-center border border-slate-100/50">
+                     <div className="w-full sm:w-10 bg-emerald-500 rounded-t-md shadow-lg transition-all duration-700 hover:bg-emerald-400" style={{ height: \`\${(item.totalAset/maxVal)*100}%\` }}></div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] font-black text-slate-800">{formatCompact(item.totalAset)}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter truncate w-16 text-center">{item.periode}</span>
+                  </div>
+                </div>
+              ))}
+              {chartData.length === 0 && (
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 italic text-sm border-2 border-dashed border-slate-100 rounded-3xl">
+                  <TrendingUp className="w-12 h-12 mb-3 opacity-20" />
+                  Belum ada riwayat periode.
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Tampilkan React!
+        loadingText.innerText = "MEMBUKA APLIKASI...";
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+      } catch(err) {
+        console.error("Gagal menjalan aplikasi:", err);
+        document.getElementById('root').innerHTML = \`
+          <div style="padding: 40px; font-family: sans-serif; text-align: center; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #ef4444; margin-bottom: 20px;">Gagal Memuat Aplikasi</h2>
+            <div style="background: #fef2f2; border: 1px solid #fca5a5; padding: 20px; border-radius: 12px; text-align: left; color: #7f1d1d;">
+              <p>Terjadi kegagalan saat menarik data dari server luar (Firebase/React). Error:</p>
+              <pre style="margin-top:10px; background: #fee2e2; padding: 10px; border-radius: 8px; font-size: 12px; overflow-x: auto;">\${err.message}</pre>
             </div>
           </div>
-        </div>
-      );
-    }
-
-    function StatCard({ title, value, icon, bg }) {
-      return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5">
-          <div className={`p-4 rounded-2xl shadow-inner \${bg}`}>{icon}</div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
-            <p className="text-2xl font-black text-slate-800">{value}</p>
-          </div>
-        </div>
-      );
-    }
-
-    function SimpleBarChart({ data }) {
-      const chartData = data.slice(-8);
-      const maxVal = Math.max(...chartData.map(d => d.totalAset), 1000);
-      const formatCompact = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
-
-      return (
-        <div className="h-64 flex items-end gap-3 sm:gap-6 pt-10 px-2">
-          {chartData.map((item, idx) => (
-            <div key={idx} className="flex-1 flex flex-col items-center gap-3 group relative h-full justify-end">
-              <div className="w-full bg-slate-50 rounded-t-xl h-full flex items-end justify-center border border-slate-100/50">
-                 <div className="w-full sm:w-10 bg-emerald-500 rounded-t-md shadow-lg transition-all duration-700 hover:bg-emerald-400" style={{ height: \`\${(item.totalAset/maxVal)*100}%\` }}></div>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-slate-800">{formatCompact(item.totalAset)}</span>
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter truncate w-16 text-center">{item.periode}</span>
-              </div>
-            </div>
-          ))}
-          {chartData.length === 0 && (
-            <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 italic text-sm border-2 border-dashed border-slate-100 rounded-3xl">
-              <TrendingUp className="w-12 h-12 mb-3 opacity-20" />
-              Belum ada riwayat periode.
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    const root = createRoot(document.getElementById('root'));
-    root.render(<App />);
+        \`;
+      }
+    })();
   </script>
 </body>
 </html>
