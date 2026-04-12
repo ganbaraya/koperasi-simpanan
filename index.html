@@ -5,30 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aplikasi Simpanan Anggota Koperasi</title>
 
-  <!-- Tailwind CSS dari CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Muat React secara Global Terlebih Dahulu agar lebih stabil -->
   <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   
-  <!-- Babel untuk mengubah file React (JSX) -->
   <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
 
-  <!-- Script Eksternal untuk Excel dan PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          }
-        }
-      }
-    }
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style> 
@@ -37,7 +25,6 @@
   </style>
 </head>
 <body class="bg-slate-50">
-  <!-- Indikator loading -->
   <div id="root">
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #64748b;">
       <div style="width: 40px; height: 40px; border: 4px solid #cbd5e1; border-top: 4px solid #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
@@ -45,31 +32,28 @@
     </div>
   </div>
 
-  <script type="text/babel">
-    // Kita gunakan IIFE (Self Executing Asynchronous Function) untuk load modul
-    // Ini metode paling aman dan cepat di semua browser (anti blank screen!)
+  <!-- PENTING: data-presets="react" memastikan Babel HANYA mengubah JSX, tidak merusak async/await bawaan browser -->
+  <script type="text/babel" data-presets="react">
     (async function() {
       try {
         const loadingText = document.getElementById('loading-text');
         
-        // 1. Ekstrak React & ReactDOM yang sudah di-load global
         const { useState, useEffect, useMemo, useRef } = React;
         const { createRoot } = ReactDOM;
         
-        // 2. Load Lucide Icons
         loadingText.innerText = "MENYIAPKAN TAMPILAN...";
+        const Lucide = await import('https://esm.sh/lucide-react@0.292.0?external=react');
         const { 
           Upload, Users, DollarSign, TrendingUp, Search, FileText, 
           LogOut, Shield, ChevronRight, X, Download, AlertCircle, Edit, Save, Settings, Key, Building, Trash2, AlertTriangle, ExternalLink
-        } = await import('https://esm.sh/lucide-react@0.292.0?external=react');
+        } = Lucide;
         
-        // 3. Load Firebase SDK
         loadingText.innerText = "MENGHUBUNGKAN KE DATABASE...";
-        const { initializeApp } = await import('https://esm.sh/firebase@10.8.0/app');
-        const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://esm.sh/firebase@10.8.0/auth');
-        const { getFirestore, collection, onSnapshot, doc, setDoc, getDoc, writeBatch, query, getDocs } = await import('https://esm.sh/firebase@10.8.0/firestore');
+        // MENGGUNAKAN CDN RESMI FIREBASE (gstatic) AGAR 100% BEBAS DARI HANG/STUCK DI BROWSER
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+        const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+        const { getFirestore, collection, onSnapshot, doc, setDoc, getDoc, writeBatch, query, getDocs } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
 
-        // --- FIREBASE INITIALIZATION ---
         const firebaseConfig = {
           apiKey: "AIzaSyDIA_8HL-335JZspg20sAhpaEbY5ovofxg",
           authDomain: "sikosib-28f29.firebaseapp.com",
@@ -79,12 +63,11 @@
           appId: "1:1096545835512:web:5fded121d1ce105d475e0d"
         };
 
-        const app = window.firebaseApp = initializeApp(firebaseConfig);
-        const auth = window.firebaseAuth = getAuth(app);
-        const db = window.firebaseDb = getFirestore(app);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
         const appId = "sikosib-28f29";
 
-        // --- KOMPONEN APLIKASI ---
         function App() {
           const [fbUser, setFbUser] = useState(null);
           const [appRole, setAppRole] = useState(null); 
@@ -112,8 +95,9 @@
                 if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
                   setAuthError("Provider 'Anonymous' belum diaktifkan di Firebase Console.");
                 } else {
-                  setAuthError(`Kesalahan Autentikasi: ${err.message}`);
+                  setAuthError(\`Kesalahan Autentikasi: \${err.message}\`);
                 }
+                setLoading(false); // Pastikan loading berhenti walau error
               }
             };
             
@@ -121,7 +105,12 @@
 
             const unsubscribe = onAuthStateChanged(auth, (user) => {
               setFbUser(user);
-              if (user) setLoading(false);
+              if (user) {
+                setLoading(false);
+              } else if (authError) {
+                setLoading(false);
+              }
+              // Catatan: Jika user=null dan tidak ada error, sedang menunggu login anonim selesai
             });
 
             return () => unsubscribe();
@@ -188,7 +177,7 @@
                     <ol className="text-sm text-slate-700 space-y-3">
                       <li className="flex gap-3">
                         <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                        <span>Buka <a href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`} target="_blank" rel="noreferrer" className="text-emerald-600 underline font-bold inline-flex items-center gap-1">Firebase Console <ExternalLink className="w-3 h-3"/></a></span>
+                        <span>Buka <a href={\`https://console.firebase.google.com/project/\${firebaseConfig.projectId}/authentication/providers\`} target="_blank" rel="noreferrer" className="text-emerald-600 underline font-bold inline-flex items-center gap-1">Firebase Console <ExternalLink className="w-3 h-3"/></a></span>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-none bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
@@ -212,6 +201,15 @@
                     Sudah Saya Aktifkan, Segarkan Halaman
                   </button>
                 </div>
+              </div>
+            );
+          }
+
+          if (loading) {
+            return (
+              <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-500">
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                <p className="font-bold">Menghubungkan Akun...</p>
               </div>
             );
           }
@@ -788,7 +786,6 @@
           );
         }
 
-        // Tampilkan React!
         loadingText.innerText = "MEMBUKA APLIKASI...";
         const root = createRoot(document.getElementById('root'));
         root.render(<App />);
@@ -799,7 +796,7 @@
           <div style="padding: 40px; font-family: sans-serif; text-align: center; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #ef4444; margin-bottom: 20px;">Gagal Memuat Aplikasi</h2>
             <div style="background: #fef2f2; border: 1px solid #fca5a5; padding: 20px; border-radius: 12px; text-align: left; color: #7f1d1d;">
-              <p>Terjadi kegagalan saat menarik data dari server luar (Firebase/React). Error:</p>
+              <p>Terjadi kesalahan teknis saat browser Anda memproses kode aplikasi. Error detail:</p>
               <pre style="margin-top:10px; background: #fee2e2; padding: 10px; border-radius: 8px; font-size: 12px; overflow-x: auto;">\${err.message}</pre>
             </div>
           </div>
