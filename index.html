@@ -20,15 +20,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <script>
-    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } };
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, keyframes: { shake: { '0%, 100%': { transform: 'translateX(0)' }, '25%': { transform: 'translateX(-5px)' }, '75%': { transform: 'translateX(5px)' } } }, animation: { shake: 'shake 0.2s ease-in-out 0s 2' } } } };
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style> 
-    body { font-family: 'Inter', sans-serif; } 
+    body { font-family: 'Inter', sans-serif; overscroll-behavior-y: none; } 
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="bg-slate-50">
+<body class="bg-slate-50 selection:bg-emerald-200">
   <div id="root">
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #64748b;">
       <div style="width: 40px; height: 40px; border: 4px solid #cbd5e1; border-top: 4px solid #10b981; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
@@ -48,7 +48,7 @@
         const Lucide = await import('https://esm.sh/lucide-react@0.292.0');
         const { 
           Upload, Users, DollarSign, TrendingUp, Search, FileText, 
-          LogOut, Shield, ChevronRight, X, Download, AlertCircle, Edit, Save, Settings, Key, Building, Trash2, AlertTriangle, ExternalLink
+          LogOut, Shield, ChevronRight, X, Download, AlertCircle, Edit, Save, Settings, Key, Building, Trash2, AlertTriangle, ExternalLink, Lock
         } = Lucide;
         
         loadingText.innerText = "MENGHUBUNGKAN KE DATABASE...";
@@ -323,6 +323,7 @@
 
           const totalAset = members.reduce((sum, m) => sum + (Number(m.total) || 0), 0);
           const totalSHU = members.reduce((sum, m) => sum + (Number(m.shu) || 0), 0);
+          const totalPembiayaan = members.reduce((sum, m) => sum + (Number(m.sisaPembiayaan) || 0), 0);
           const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
           const handleFileUpload = async (e) => {
@@ -354,6 +355,12 @@
                   const shu = Number(row['SHU'] || 0);
                   let total = Number(row['Total Saldo'] || (pokok + wajib + sukarela + shu));
                   
+                  // FITUR PINTU PIN & PEMBIAYAAN SYARIAH
+                  const pin = String(row['PIN Akses'] || row['PIN'] || row['pin'] || '');
+                  const sisaPembiayaan = Number(row['Sisa Pembiayaan'] || row['Sisa Pinjaman'] || row['Pembiayaan'] || 0);
+                  const angsuran = Number(row['Angsuran Bulan Ini'] || row['Angsuran'] || 0);
+                  const jatuhTempo = row['Jatuh Tempo'] || '';
+
                   tempAset += total;
                   tempSHU += shu;
 
@@ -361,6 +368,7 @@
                   const ref = doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_members', docId);
                   batch.set(ref, { 
                     nama, pokok, wajib, sukarela, shu, total, 
+                    pin, sisaPembiayaan, angsuran, jatuhTempo,
                     periode: periodeUpload, 
                     updatedAt: Date.now() 
                   });
@@ -419,7 +427,7 @@
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in">
                   <StatCard title="Total Aset Simpanan" value={formatRp(totalAset)} icon={<DollarSign className="w-6 h-6 text-emerald-600" />} bg="bg-emerald-50" />
                   <StatCard title="Total SHU Terdistribusi" value={formatRp(totalSHU)} icon={<TrendingUp className="w-6 h-6 text-amber-600" />} bg="bg-amber-50" />
-                  <StatCard title="Anggota Terdaftar" value={`${members.length} Orang`} icon={<Users className="w-6 h-6 text-blue-600" />} bg="bg-blue-50" />
+                  <StatCard title="Pembiayaan Berjalan" value={formatRp(totalPembiayaan)} icon={<FileText className="w-6 h-6 text-indigo-600" />} bg="bg-indigo-50" />
                   
                   <div className="md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold flex items-center gap-2 mb-6"><TrendingUp className="w-5 h-5 text-emerald-600" /> Grafik Pertumbuhan</h3>
@@ -489,7 +497,7 @@
                     <h4 className="font-bold text-slate-700 flex items-center gap-2 border-b pb-2"><Building className="w-4 h-4" /> Informasi Koperasi</h4>
                     <div>
                       <label className="block text-sm font-medium mb-1 text-slate-600">Nama Resmi</label>
-                      <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                      <input type="text" className="w-full px-4 py-3 sm:py-2 border rounded-xl sm:rounded-lg focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1 text-slate-600">Alamat Lengkap</label>
@@ -560,7 +568,7 @@
                   <p className="text-slate-500 font-medium">{profile.name}</p>
                 </div>
               </div>
-              <MemberList members={members} loading={loading} isAdmin={false} profile={profile} />
+              <MemberList members={members} loading={loading} isAdmin={false} profile={profile} db={db} appId={appId} />
             </div>
           );
         }
@@ -591,12 +599,15 @@
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 max-h-[60vh] overflow-y-auto">
                   {filteredMembers.map(member => (
-                    <button key={member.id} onClick={() => setSelectedMember(member)} className="p-4 sm:p-5 text-left hover:bg-emerald-50 transition-all flex justify-between items-center border-b border-r border-slate-100 group gap-3">
+                    <button key={member.id} onClick={() => setSelectedMember(member)} className="p-4 sm:p-5 text-left hover:bg-emerald-50 transition-all flex justify-between items-center border-b border-r border-slate-100 group gap-3 relative">
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors truncate">{member.nama}</p>
                         <p className="text-xs text-emerald-600 font-black tracking-wide mt-1 truncate">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(member.total)}</p>
                       </div>
-                      <ChevronRight className="flex-none w-5 h-5 text-slate-300 group-hover:text-emerald-400 transform group-hover:translate-x-1 transition-all" />
+                      <div className="flex items-center gap-2">
+                        {member.pin && !isAdmin && <div className="bg-amber-100 text-amber-600 p-1.5 rounded-full shadow-sm" title="Dilindungi PIN"><Lock className="w-3 h-3" /></div>}
+                        <ChevronRight className="flex-none w-5 h-5 text-slate-300 group-hover:text-emerald-400 transform group-hover:translate-x-1 transition-all" />
+                      </div>
                     </button>
                   ))}
                   {filteredMembers.length === 0 && (
@@ -609,7 +620,7 @@
               )}
 
               {selectedMember && (
-                <MemberDetailModal 
+                <MemberDetailWithGate 
                   member={selectedMember} 
                   onClose={() => setSelectedMember(null)} 
                   isAdmin={isAdmin} 
@@ -622,9 +633,78 @@
           );
         }
 
+        // --- NEW PIN GATE COMPONENT ---
+        function PinGate({ memberPin, onUnlock, onClose, profile }) {
+          const [inputPin, setInputPin] = useState('');
+          const [error, setError] = useState(false);
+
+          const handleSubmit = (e) => {
+            e.preventDefault();
+            if (inputPin === memberPin) {
+              onUnlock();
+            } else {
+              setError(true);
+              setInputPin('');
+            }
+          };
+
+          return (
+            <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md" style={{ height: '100dvh' }}>
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="bg-slate-800 p-6 sm:p-8 text-center relative border-b-4 border-emerald-500">
+                  <button onClick={onClose} className="absolute right-4 top-4 text-slate-400 hover:text-white transition-colors p-2"><X className="w-6 h-6" /></button>
+                  <div className="w-16 h-16 bg-slate-700/50 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-inner ring-1 ring-white/10">
+                    <Lock className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Verifikasi Keamanan</h2>
+                  <p className="text-xs text-slate-300 mt-2">Kartu anggota ini dilindungi Nomor Akses</p>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="p-6 sm:p-8 pb-8">
+                  <div className="mb-6 h-[100px]">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center mb-3">Masukkan PIN</label>
+                    <input 
+                      type="password" 
+                      maxLength="8"
+                      autoFocus
+                      className={`w-full text-center text-3xl tracking-[0.5em] font-black p-4 border-2 rounded-2xl outline-none transition-all ${error ? 'border-red-500 bg-red-50 text-red-600 animate-shake' : 'border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 shadow-inner'}`}
+                      value={inputPin}
+                      onChange={(e) => { setInputPin(e.target.value); setError(false); }}
+                      placeholder="••••••"
+                    />
+                    {error && <p className="text-center text-red-500 text-xs font-bold mt-3 animate-in slide-in-from-top-1">PIN Tidak Sesuai!</p>}
+                  </div>
+                  
+                  <button type="submit" disabled={inputPin.length < 4} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black text-base py-4 rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                    <Key className="w-5 h-5"/> Buka Lemari Rincian
+                  </button>
+                </form>
+              </div>
+            </div>
+          );
+        }
+
+        // --- WRAPPER UNTUK MENGGABUNGKAN GATE & MODAL ---
+        function MemberDetailWithGate({ member, onClose, isAdmin, db, appId, profile }) {
+          const [isUnlocked, setIsUnlocked] = useState(false);
+          const hasPin = Boolean(member.pin && member.pin.toString().trim() !== '');
+
+          // Jika Admin login ATAU member tidak punya PIN disetel, langsung buka jalurnya.
+          const bypassGate = isAdmin || !hasPin;
+
+          if (!bypassGate && !isUnlocked) {
+            return <PinGate memberPin={member.pin.toString()} onUnlock={() => setIsUnlocked(true)} onClose={onClose} profile={profile} />;
+          }
+
+          return <MemberDetailModal member={member} onClose={onClose} isAdmin={isAdmin} db={db} appId={appId} profile={profile} />;
+        }
+
         function MemberDetailModal({ member, onClose, isAdmin, db, appId, profile }) {
           const [isEditing, setIsEditing] = useState(false);
-          const [editData, setEditData] = useState({ pokok: member.pokok, wajib: member.wajib, sukarela: member.sukarela, shu: member.shu });
+          const [editData, setEditData] = useState({ 
+            pokok: member.pokok || 0, wajib: member.wajib || 0, sukarela: member.sukarela || 0, shu: member.shu || 0,
+            sisaPembiayaan: member.sisaPembiayaan || 0, angsuran: member.angsuran || 0, jatuhTempo: member.jatuhTempo || ''
+          });
           const detailRef = useRef(null);
 
           const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
@@ -644,10 +724,10 @@
             const element = detailRef.current;
             
             const opt = {
-              margin: 15,
-              filename: `Laporan_Simpanan_${member.nama}.pdf`,
+              margin: [10, 10, 10, 10],
+              filename: `Rincian_Simpanan_${member.nama}.pdf`,
               image: { type: 'jpeg', quality: 1.0 },
-              html2canvas: { scale: 3, useCORS: true },
+              html2canvas: { scale: 2, useCORS: true },
               jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             
@@ -670,12 +750,12 @@
           };
 
           return (
-            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-md overflow-hidden" style={{ height: '100dvh' }}>
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-full animate-in fade-in zoom-in-95 duration-200">
+            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-md overflow-hidden animate-in fade-in" style={{ height: '100dvh' }}>
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-full animate-in zoom-in-95 duration-200">
                 
                 <div className="flex-1 overflow-y-auto min-h-0 bg-white w-full touch-pan-y">
-                  <div ref={detailRef} className="bg-white pb-2">
-                    <div className="bg-emerald-700 p-3 sm:p-8 text-white relative flex gap-3 sm:gap-6 items-center">
+                  <div ref={detailRef} className="bg-white pb-2 relative">
+                    <div className="bg-emerald-700 p-3 sm:p-8 text-white relative flex gap-3 sm:gap-6 items-center shrink-0 border-b border-emerald-800">
                       {profile.logo && <img src={profile.logo} alt="Logo" className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-xl p-1.5 object-contain no-print shadow-sm" />}
                       <div className="flex-1">
                         <h3 className="font-black text-base sm:text-xl leading-tight">{profile.name}</h3>
@@ -685,58 +765,98 @@
                     </div>
 
                     <div className="p-4 sm:p-8 text-slate-800">
-                      <div className="text-center mb-4 sm:mb-8 border-b pb-4 sm:pb-6">
-                        <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">Rincian Simpanan</h2>
-                        <span className="bg-slate-100 px-2.5 py-1 rounded-full text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 inline-block">Periode: {member.periode}</span>
+                      <div className="text-center mb-4 sm:mb-8 border-b pb-4 sm:pb-6 relative leading-tight">
+                        <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-slate-800 mb-2">Pernyataan Koperasi</h2>
+                        <span className="bg-slate-100 px-3 py-1.5 rounded-full text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-widest inline-block border border-slate-200/50 shadow-sm">Periode: {member.periode}</span>
                       </div>
 
-                      <div className="space-y-3 sm:space-y-4">
-                        <div className="bg-slate-50 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anggota</p>
-                          <p className="font-bold text-base sm:text-lg">{member.nama}</p>
-                        </div>
+                      <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl mb-6 shadow-sm border border-slate-100">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Anggota Terdaftar</p>
+                          <p className="font-black text-lg sm:text-xl text-slate-800">{member.nama}</p>
+                      </div>
 
-                        {[
-                          { label: 'Simpanan Pokok', key: 'pokok' },
-                          { label: 'Simpanan Wajib', key: 'wajib' },
-                          { label: 'Simpanan Sukarela', key: 'sukarela' },
-                          { label: 'SHU', key: 'shu' }
-                        ].map(row => (
-                          <div key={row.key} className="flex flex-col sm:flex-row justify-between sm:items-center py-2 sm:py-3 border-b border-slate-100 gap-1 sm:gap-4">
-                            <span className="text-slate-500 font-medium text-xs sm:text-base">{row.label}</span>
-                            {isEditing ? (
-                              <input type="number" className="w-full sm:w-32 text-left sm:text-right border-2 border-emerald-100 rounded-lg p-1.5" value={editData[row.key]} onChange={e => setEditData({...editData, [row.key]: e.target.value})} />
-                            ) : (
-                              <span className="font-bold text-base sm:text-base break-words">{formatRp(member[row.key])}</span>
-                            )}
-                          </div>
-                        ))}
+                      {/* --- ZONA HIJAU: SIMPANAN --- */}
+                      <div className="space-y-3 sm:space-y-4 mb-8">
+                        <div className="flex items-center gap-2 mb-3 px-1">
+                           <Shield className="w-5 h-5 text-emerald-600" /> 
+                           <h4 className="font-black text-slate-800 uppercase tracking-wide text-xs sm:text-sm">Akumulasi Simpanan</h4>
+                        </div>
                         
-                        <div className="mt-5 sm:mt-8 flex flex-col sm:flex-row justify-between items-start sm:items-center text-emerald-800 bg-emerald-50 p-4 sm:p-6 rounded-2xl border-2 border-emerald-100 gap-1.5 sm:gap-2">
-                          <span className="font-black text-[10px] sm:text-xs uppercase tracking-widest shrink-0">Total Akumulasi</span>
-                          <span className="text-xl sm:text-3xl font-black break-all">{formatRp(isEditing ? (Number(editData.pokok)+Number(editData.wajib)+Number(editData.sukarela)+Number(editData.shu)) : member.total)}</span>
+                        <div className="bg-white border-2 border-emerald-50 rounded-2xl p-2 sm:p-4 block">
+                          {[
+                            { label: 'Simpanan Pokok', key: 'pokok' },
+                            { label: 'Simpanan Wajib', key: 'wajib' },
+                            { label: 'Simpanan Sukarela', key: 'sukarela' },
+                            { label: 'SHU', key: 'shu' }
+                          ].map(row => (
+                            <div key={row.key} className="flex flex-col sm:flex-row justify-between sm:items-center py-2.5 sm:py-3 border-b border-slate-50 gap-1 sm:gap-4 last:border-0">
+                              <span className="text-slate-500 font-medium text-xs sm:text-sm">{row.label}</span>
+                              {isEditing ? (
+                                <input type="number" className="w-full sm:w-32 text-left sm:text-right border-2 border-emerald-100 rounded-lg p-1.5 focus:border-emerald-500 outline-none" value={editData[row.key]} onChange={e => setEditData({...editData, [row.key]: e.target.value})} />
+                              ) : (
+                                <span className="font-bold text-base text-slate-800 break-words">{formatRp(member[row.key])}</span>
+                              )}
+                            </div>
+                          ))}
                         </div>
-
-                        <div className="mt-4 sm:mt-8 pt-4 border-t border-dashed border-slate-200 text-center">
-                          <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium italic">
-                            Dicetak pada: {getTodayDate()}
-                          </p>
+                        
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-emerald-900 bg-emerald-100/50 p-4 sm:p-5 rounded-2xl border-2 border-emerald-500/20 gap-1.5 sm:gap-2 shadow-sm">
+                          <span className="font-black text-[10px] sm:text-xs uppercase tracking-widest shrink-0">Total Simpanan</span>
+                          <span className="text-xl sm:text-2xl font-black break-all">{formatRp(isEditing ? (Number(editData.pokok)+Number(editData.wajib)+Number(editData.sukarela)+Number(editData.shu)) : member.total)}</span>
                         </div>
                       </div>
+
+                      {/* --- ZONA MERAH/ORANYE: PEMBIAYAAN SYARIAH --- */}
+                      {(member.sisaPembiayaan > 0 || isEditing || member.angsuran > 0) && (
+                        <div className="space-y-3 sm:space-y-4 pt-6 border-t-[3px] border-dashed border-slate-200">
+                          <div className="flex items-center justify-between gap-2 mb-3 px-1">
+                             <div className="flex items-center gap-2">
+                               <AlertCircle className="w-5 h-5 text-amber-600" /> 
+                               <h4 className="font-black text-amber-800 uppercase tracking-wide text-xs sm:text-sm">Riwayat Pembiayaan</h4>
+                             </div>
+                             <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Syariah</span>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-amber-50 to-orange-50/30 p-2 sm:p-4 rounded-2xl border border-amber-200/60 shadow-sm block">
+                            {[
+                                { label: 'Sisa Pembiayaan', key: 'sisaPembiayaan', isNumber: true },
+                                { label: 'Angsuran Bulan Ini', key: 'angsuran', isNumber: true },
+                                { label: 'Jatuh Tempo', key: 'jatuhTempo', isNumber: false }
+                            ].map((row, idx) => (
+                               <div key={row.key} className={`flex flex-col sm:flex-row justify-between sm:items-center py-2.5 sm:py-3 gap-1 sm:gap-4 ${idx !== 2 ? 'border-b border-amber-200/50' : ''}`}>
+                                 <span className="text-amber-800/80 font-medium text-xs sm:text-sm">{row.label}</span>
+                                 {isEditing ? (
+                                    <input type={row.isNumber ? "number" : "text"} className="w-full sm:w-32 text-left sm:text-right border-2 border-amber-300/50 rounded-lg p-1.5 focus:border-amber-500 bg-white outline-none text-amber-900 font-bold" value={editData[row.key] || ''} onChange={e => setEditData({...editData, [row.key]: e.target.value})} placeholder={row.isNumber ? '0' : 'Bulan Tahun'} />
+                                 ) : (
+                                    <span className="font-bold text-amber-950 text-base break-words">{row.isNumber ? formatRp(member[row.key]) : (member[row.key] || '-')}</span>
+                                 )}
+                               </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-8 sm:mt-10 pt-5 border-t border-slate-200 text-center">
+                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium italic">
+                          Dicetak secara digital pada: {getTodayDate()}
+                        </p>
+                        <p className="text-[8px] text-slate-300 mt-1">SIKOSIB Core System</p>
+                      </div>
+
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 p-3 sm:p-5 border-t flex justify-end gap-2 sm:gap-3 no-print shrink-0">
+                <div className="bg-slate-50 p-3 sm:p-5 border-t border-slate-200 flex justify-end gap-2 sm:gap-3 no-print shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] relative z-10">
                   {isAdmin && (
-                    <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} className={`flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold transition-all shadow-md flex-1 sm:flex-none text-sm sm:text-base ${isEditing ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}>
+                    <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-bold transition-all shadow-md flex-1 sm:flex-none text-sm sm:text-base ${isEditing ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-amber-500 text-white hover:bg-amber-600'}`}>
                       {isEditing ? <Save className="w-4 h-4 sm:w-5 sm:h-5" /> : <Edit className="w-4 h-4 sm:w-5 sm:h-5" />}
-                      {isEditing ? 'Simpan' : 'Edit'}
+                      {isEditing ? 'Simpan' : 'Edit Database'}
                     </button>
                   )}
                   {!isEditing && (
-                    <button onClick={handleDownloadPDF} className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-slate-800 text-white rounded-xl font-bold shadow-md flex-1 sm:flex-none text-sm sm:text-base">
-                      <Download className="w-4 h-4 sm:w-5 sm:h-5" /> Cetak
+                    <button onClick={handleDownloadPDF} className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md flex-1 sm:flex-none text-sm sm:text-base transition-colors">
+                      <Download className="w-4 h-4 sm:w-5 sm:h-5" /> Unduh Laporan PDF
                     </button>
                   )}
                 </div>
@@ -747,7 +867,7 @@
 
         function StatCard({ title, value, icon, bg }) {
           return (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5 transition-transform hover:scale-[1.02]">
               <div className={`p-4 rounded-2xl shadow-inner ${bg}`}>{icon}</div>
               <div>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
@@ -763,7 +883,7 @@
           const formatCompact = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
 
           return (
-            <div className="h-64 flex items-end gap-3 sm:gap-6 pt-10 px-2">
+            <div className="h-64 flex items-end gap-3 sm:gap-6 pt-10 px-2 relative">
               {chartData.map((item, idx) => (
                 <div key={idx} className="flex-1 flex flex-col items-center gap-3 group relative h-full justify-end">
                   <div className="w-full bg-slate-50 rounded-t-xl h-full flex items-end justify-center border border-slate-100/50">
