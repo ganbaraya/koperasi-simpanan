@@ -356,7 +356,8 @@
                   let total = Number(row['Total Saldo'] || (pokok + wajib + sukarela + shu));
                   
                   // FITUR PINTU PIN & PEMBIAYAAN SYARIAH
-                  const pin = String(row['PIN Akses'] || row['PIN'] || row['pin'] || '');
+                  let pinRaw = row['PIN Akses'] ?? row['PIN'] ?? row['pin'];
+                  const pin = pinRaw != null && String(pinRaw).trim() !== '' ? String(pinRaw).trim() : '';
                   const sisaPembiayaan = Number(row['Sisa Pembiayaan'] || row['Sisa Pinjaman'] || row['Pembiayaan'] || 0);
                   const angsuran = Number(row['Angsuran Bulan Ini'] || row['Angsuran'] || 0);
                   const jatuhTempo = row['Jatuh Tempo'] || '';
@@ -687,7 +688,9 @@
         // --- WRAPPER UNTUK MENGGABUNGKAN GATE & MODAL ---
         function MemberDetailWithGate({ member, onClose, isAdmin, db, appId, profile }) {
           const [isUnlocked, setIsUnlocked] = useState(false);
-          const hasPin = Boolean(member.pin && member.pin.toString().trim() !== '');
+          
+          const rawPin = member.pin ? String(member.pin).trim() : '';
+          const hasPin = rawPin !== '' && rawPin.toLowerCase() !== 'undefined' && rawPin.toLowerCase() !== 'null';
 
           // Jika Admin login ATAU member tidak punya PIN disetel, langsung buka jalurnya.
           const bypassGate = isAdmin || !hasPin;
