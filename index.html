@@ -355,6 +355,10 @@
                   const shu = Number(row['SHU'] || 0);
                   let total = Number(row['Total Saldo'] || (pokok + wajib + sukarela + shu));
                   
+                  // FITUR NOMOR ANGGOTA
+                  let noAnggotaRaw = row['No Anggota'] ?? row['Nomor Anggota'] ?? row['ID'] ?? row['no_anggota'];
+                  const noAnggota = noAnggotaRaw != null ? String(noAnggotaRaw).trim() : '';
+
                   // FITUR PINTU PIN & PEMBIAYAAN SYARIAH
                   let pinRaw = row['PIN Akses'] ?? row['PIN'] ?? row['pin'];
                   const pin = pinRaw != null && String(pinRaw).trim() !== '' ? String(pinRaw).trim() : '';
@@ -365,10 +369,11 @@
                   tempAset += total;
                   tempSHU += shu;
 
-                  const docId = nama.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                  const safeName = nama.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                  const docId = noAnggota ? `${noAnggota.toLowerCase().replace(/[^a-z0-9]/g, '')}_${safeName}` : safeName;
                   const ref = doc(db, 'artifacts', appId, 'public', 'data', 'koperasi_members', docId);
                   batch.set(ref, { 
-                    nama, pokok, wajib, sukarela, shu, total, 
+                    noAnggota, nama, pokok, wajib, sukarela, shu, total, 
                     pin, sisaPembiayaan, angsuran, jatuhTempo,
                     periode: periodeUpload, 
                     updatedAt: Date.now() 
@@ -579,7 +584,8 @@
           const [selectedMember, setSelectedMember] = useState(null);
 
           const filteredMembers = useMemo(() => {
-            return members.filter(m => m.nama?.toLowerCase().includes(searchTerm.toLowerCase()));
+            const searchLower = searchTerm.toLowerCase();
+            return members.filter(m => (m.nama && m.nama.toLowerCase().includes(searchLower)) || (m.noAnggota && m.noAnggota.toLowerCase().includes(searchLower)));
           }, [members, searchTerm]);
 
           return (
@@ -602,7 +608,10 @@
                   {filteredMembers.map(member => (
                     <button key={member.id} onClick={() => setSelectedMember(member)} className="p-4 sm:p-5 text-left hover:bg-emerald-50 transition-all flex justify-between items-center border-b border-r border-slate-100 group gap-3 relative">
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors truncate">{member.nama}</p>
+                        <p className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors truncate">
+                          {member.noAnggota && <span className="text-slate-400 font-medium mr-1 sm:mr-2 text-xs">#{member.noAnggota}</span>}
+                          {member.nama}
+                        </p>
                         <p className="text-xs text-emerald-600 font-black tracking-wide mt-1 truncate">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(member.total)}</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -773,9 +782,17 @@
                         <span className="bg-slate-100 px-3 py-1.5 rounded-full text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-widest inline-block border border-slate-200/50 shadow-sm">Periode: {member.periode}</span>
                       </div>
 
-                      <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl mb-6 shadow-sm border border-slate-100">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Anggota Terdaftar</p>
-                          <p className="font-black text-lg sm:text-xl text-slate-800">{member.nama}</p>
+                      <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl mb-6 shadow-sm border border-slate-100 flex justify-between items-end gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 line-clamp-1">Anggota Terdaftar</p>
+                          <p className="font-black text-lg sm:text-xl text-slate-800 break-words">{member.nama}</p>
+                        </div>
+                        {member.noAnggota && (
+                          <div className="text-right shrink-0">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">No. Anggota</p>
+                            <p className="font-bold text-emerald-700 bg-emerald-100/50 px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg border border-emerald-200/50 text-xs sm:text-sm">{member.noAnggota}</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* --- ZONA HIJAU: SIMPANAN --- */}
